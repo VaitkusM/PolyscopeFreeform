@@ -4,3 +4,10 @@
 [submodule "deps/polyscope"]
 	path = deps/polyscope
 	url = https://github.com/nmwsharp/polyscope.git
+[submodule "deps/tinyad"]
+	path = deps/tinyad
+	url = https://github.com/patr-schm/TinyAD.git
+[submodule "deps/geom"]
+	path = deps/geom
+	url = https://github.com/salvipeter/libgeom.git
+
