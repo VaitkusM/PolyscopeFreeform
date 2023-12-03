@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10.0)
 
-project(gc_polyscope_example)
+project(PolyscopeFreeform)
 
 ### Configure output locations
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -76,10 +76,10 @@ set(SRCS
 	# add any other source files here
 )
 
-# To change the name of your executable, change "gc_project" in the lines below to whatever you want
-add_executable(gc_project "${SRCS}")
-target_include_directories(gc_project PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/")
+# To change the name of your executable, change "PolyscopeFreeform" in the lines below to whatever you want
+add_executable(PolyscopeFreeform "${SRCS}")
+target_include_directories(PolyscopeFreeform PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/")
 # add the args.hxx project which we use for command line args
-target_include_directories(gc_project PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/deps/polyscope/deps/args")
-target_include_directories(gc_project PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/deps/geom")
-target_link_libraries(gc_project geometry-central polyscope TinyAD geom)
+target_include_directories(PolyscopeFreeform PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/deps/polyscope/deps/args")
+target_include_directories(PolyscopeFreeform PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/deps/geom")
+target_link_libraries(PolyscopeFreeform geometry-central polyscope TinyAD geom)
