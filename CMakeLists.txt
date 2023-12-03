@@ -43,6 +43,7 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   message("Using Visual Studio compiler flags")
   set(BASE_CXX_FLAGS "${BASE_CXX_FLAGS} /W4")
   set(BASE_CXX_FLAGS "${BASE_CXX_FLAGS} /MP") # parallel build
+  set(BASE_CXX_FLAGS "${BASE_CXX_FLAGS} /std:c++17")
   SET(DISABLED_WARNINGS "${DISABLED_WARNINGS} /wd\"4267\"")  # ignore conversion to smaller type (fires more aggressively than the gcc version, which is annoying)
   SET(DISABLED_WARNINGS "${DISABLED_WARNINGS} /wd\"4244\"")  # ignore conversion to smaller type (fires more aggressively than the gcc version, which is annoying)
   SET(DISABLED_WARNINGS "${DISABLED_WARNINGS} /wd\"4305\"")  # ignore truncation on initialization
@@ -62,18 +63,23 @@ endif()
 # == Deps
 add_subdirectory(deps/geometry-central)
 add_subdirectory(deps/polyscope)
+add_subdirectory(deps/tinyad)
+add_subdirectory(deps/geom)
 
 # == Build our project stuff
 
+SET(INCLUDE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include/")
+
 set(SRCS 
   src/main.cpp
+  ${INCLUDE_ROOT}/bspline.hpp
 	# add any other source files here
 )
-
 
 # To change the name of your executable, change "gc_project" in the lines below to whatever you want
 add_executable(gc_project "${SRCS}")
 target_include_directories(gc_project PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/")
 # add the args.hxx project which we use for command line args
 target_include_directories(gc_project PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/deps/polyscope/deps/args")
-target_link_libraries(gc_project geometry-central polyscope)
+target_include_directories(gc_project PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/deps/geom")
+target_link_libraries(gc_project geometry-central polyscope TinyAD geom)
