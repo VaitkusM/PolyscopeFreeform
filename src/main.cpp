@@ -3,8 +3,10 @@
 #include "geometrycentral/surface/surface_mesh_factories.h"
 #include "geometrycentral/surface/vertex_position_geometry.h"
 
+#include "geometrycentral/numerical/linear_solvers.h"
 #include "geometrycentral/surface/direction_fields.h"
 #include "geometrycentral/surface/stripe_patterns.h"
+#include "geometrycentral/surface/vector_heat_method.h"
 
 #include "polyscope/polyscope.h"
 #include "polyscope/surface_mesh.h"
@@ -121,7 +123,7 @@ void doWork() {
         for (int j = 0; j <= deg_v; ++j) {
             double x = (double(i) - double(deg_u)/2)/(double(deg_u) / 2);
             double y = (double(j) - double(deg_v)/2)/(double(deg_v) / 2);
-            Vector3 cp = { x, y, x * x - y * y };
+            Vector3 cp = { x, y, randomReal(-1, 1) /*x * x + y * y + randomReal(-1.0, 0.0)*/ };
             cps.push_back({ cp[0], cp[1], cp[2] });
             cps_gc.push_back(cp);
         }
@@ -183,6 +185,9 @@ void doWork() {
 
     VertexData<Vector3> dus(*mesh_bez_surf);
     VertexData<Vector3> dvs(*mesh_bez_surf);
+    VertexData<Vector3> duus(*mesh_bez_surf);
+    VertexData<Vector3> duvs(*mesh_bez_surf);
+    VertexData<Vector3> dvvs(*mesh_bez_surf);
 
     VertexData<double> mean(*mesh_bez_surf);
     VertexData<double> gauss(*mesh_bez_surf);
@@ -194,6 +199,7 @@ void doWork() {
     VertexData<Vector3> Ns(*mesh_bez_surf);
 
     geometry_bez_surf->requireVertexNormals();
+    geometry_bez_surf->requireVertexDualAreas();
 
     psMesh_bez_surf->vertexNormals.ensureHostBufferAllocated();
 
@@ -236,6 +242,10 @@ void doWork() {
             dus[v_idx] = { du[0], du[1], du[2] };
             dvs[v_idx] = { dv[0], dv[1], dv[2] };
 
+            duus[v_idx] = { duu[0], duu[1], duu[2] };
+            duvs[v_idx] = { duv[0], duv[1], duv[2] };
+            dvvs[v_idx] = { dvv[0], dvv[1], dvv[2] };
+
             double H = S.trace() / 2.0;
             double K = S.determinant();
 
@@ -265,10 +275,45 @@ void doWork() {
         }
     }
 
+    VertexData<Vector3> duus_smoothed(*mesh_bez_surf);
+    //VectorHeatMethodSolver vhs(*geometry_bez_surf);
+    //geometry_bez_surf->requireCotanLaplacian();
+    //geometry_bez_surf->requireVertexLumpedMassMatrix();
+    //const auto& LL = geometry_bez_surf->cotanLaplacian;
+    //const auto& MM = geometry_bez_surf->vertexLumpedMassMatrix;
+    //double dt = 1.0;
+    //SparseMatrix<double> heat = MM + dt*LL;
+    //PositiveDefiniteSolver solv(heat);
+    //for (size_t cc = 0; cc < 3; ++cc) {
+    //    VertexData<double> rhs(*mesh_bez_surf);
+    //    for (auto v : mesh_bez_surf->vertices()) {
+    //        rhs[v] = duus[v][cc];
+    //    }
+    //    //auto MM = geometry_bez_surf->vertexLumpedMassMatrix;
+    //    //
+    //    //VertexData<double> x_pw(*mesh_bez_surf, solv.solve(x.toVector()));
+    //    //VertexData<double> x(*mesh_bez_surf, solv.solve(MM*(rhs.toVector())));
+    //    auto x = rhs;
+    //    size_t num_iter = 10;
+    //    while (num_iter-- > 0) {
+    //        x = vhs.scalarDiffuse(VertexData<double>(*mesh_bez_surf,MM*x.toVector()));
+    //    }
+
+    //    //VertexData<double> x = vhs.scalarDiffuse());
+    //    for (auto v : mesh_bez_surf->vertices()) {
+    //        duus_smoothed[v][cc] = x[v];
+    //    }
+    //}
+
+
     psMesh_bez_surf->addVertexScalarQuantity("u", us, polyscope::DataType::MAGNITUDE);
     psMesh_bez_surf->addVertexScalarQuantity("v", vs, polyscope::DataType::MAGNITUDE);
     psMesh_bez_surf->addVertexVectorQuantity("Du", dus);
     psMesh_bez_surf->addVertexVectorQuantity("Dv", dvs);
+    psMesh_bez_surf->addVertexVectorQuantity("Duu", duus);
+    psMesh_bez_surf->addVertexVectorQuantity("Duu (smoothed)", duus_smoothed);
+    psMesh_bez_surf->addVertexVectorQuantity("Duv", duvs);
+    psMesh_bez_surf->addVertexVectorQuantity("Dvv", dvvs);
     psMesh_bez_surf->addVertexVectorQuantity("Vertex normals (mesh)", geometry_bez_surf->vertexNormals);
     psMesh_bez_surf->addVertexVectorQuantity("Vertex normals (exact)", Ns);
     psMesh_bez_surf->addVertexTangentVectorQuantity("dmin", dmin, dus, dvs);
@@ -353,7 +398,7 @@ int main(int argc, char **argv) {
 
   // Initialize polyscope
   polyscope::init();
-  polyscope::view::setUpDir(polyscope::UpDir::NegZUp);
+  polyscope::view::setUpDir(polyscope::UpDir::ZUp);
   polyscope::view::setFrontDir(polyscope::FrontDir::YFront);
   polyscope::options::ssaaFactor = 3;
 
