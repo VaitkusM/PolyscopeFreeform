@@ -40,8 +40,80 @@ polyscope::SurfaceMesh* psMesh_bez_surf;
 polyscope::SurfaceMesh* psMesh_bez_cnet;
 polyscope::CurveNetwork* psCurvNet_bez_cnet;
 
+VertexData<double> us;
+VertexData<double> vs;
+
+VertexData<Vector3> dus;
+VertexData<Vector3> dvs;
+VertexData<Vector3> duus;
+VertexData<Vector3> duvs;
+VertexData<Vector3> dvvs;
+
+VertexData<Vector3> duus_smoothed;
+VertexData<Vector3> duvs_smoothed;
+VertexData<Vector3> dvvs_smoothed;
+
+VertexData<double> mean;
+VertexData<double> gauss;
+VertexData<double> DJ;
+VertexData<Vector2> dmin;
+VertexData<Vector2> dmax;
+VertexData<Vector2> Q;
+
+VertexData<Vector3> Ns;
+
+
+Geometry::BSSurface surf;
+
 // Some algorithm parameters
 float param1 = 42.0;
+
+void fitBeziertoDerivatives(
+    const std::vector<Eigen::Vector3d> &der_values, 
+    const std::vector<Eigen::Vector2d> &der_uvpars,
+    size_t                             deg_u,
+    size_t                             deg_v,
+    const std::vector<Eigen::Vector3d> &old_cps,
+    std::vector<Eigen::Vector3d>       &new_cps,
+    size_t                             dd          = 2
+)
+{
+    size_t ncp = old_cps.size();
+    size_t nd = der_values.size()/3;
+    DenseMatrix<double> MM(3*nd, ncp);
+    DenseMatrix<double> rhs(3*nd + ncp, 3);
+    BSpline::PointVector zero_cps = BSpline::zeroPoints(BSpline::fromEigen(old_cps));
+    for (size_t i = 0; i < nd; ++i) {
+        double u = der_uvpars[3 * i][0];
+        double v = der_uvpars[3 * i][1];
+        for (size_t ci = 0; ci < ncp; ++ci) {
+            auto cps4der = zero_cps;
+            cps4der[ci] = { 1.0, 0.0, 0.0 };
+            BSpline::BSSurface surf(deg_u, deg_v, cps4der);
+            BSpline::PointMatrix der;
+            surf.eval(u, v, dd, der);
+            const auto& duu = der[2][0];
+            const auto& duv = der[1][1];
+            const auto& dvv = der[0][2];
+            MM(3 * i, ci)     = duu[0];
+            MM(3 * i + 1, ci) = duv[0];
+            MM(3 * i + 2, ci) = dvv[0];
+        }
+        rhs.row(3 * i)     = der_values[3 * i];
+        rhs.row(3 * i + 1) = der_values[3 * i + 1];
+        rhs.row(3 * i + 2) = der_values[3 * i + 2];
+    }
+    for (size_t ci = 0; ci < ncp; ++ci) {
+        MM(3*nd + ci, ci) = 1.0;
+        rhs.row(3 * nd + ci) = old_cps[ci];
+    }
+    Eigen::FullPivLU<DenseMatrix<double> > solver(MM.transpose()*MM);
+    DenseMatrix<double> x = solver.solve(MM.transpose()*rhs);
+    new_cps = old_cps;
+    for (size_t ci = 0; ci < ncp; ++ci) {
+        new_cps[ci] = { x(ci,0), x(ci,1), x(ci,2) };
+    }
+}
 
 // Example computation function -- this one computes and registers a scalar
 // quantity
@@ -129,7 +201,7 @@ void doWork() {
         }
     }
 
-    Geometry::BSSurface surf(deg_u, deg_v, cps);
+    surf = Geometry::BSSurface(deg_u, deg_v, cps);
 
     size_t resolution = 100;
     BSpline::writeToMesh(surf, resolution);
@@ -180,21 +252,39 @@ void doWork() {
     //psMesh_bez_cnet->setAllPermutations(polyscopePermutations(*mesh_bez_cnet));
 
 
-    VertexData<double> us(*mesh_bez_surf);
-    VertexData<double> vs(*mesh_bez_surf);
+    //VertexData<double> us(*mesh_bez_surf);
+    //VertexData<double> vs(*mesh_bez_surf);
 
-    VertexData<Vector3> dus(*mesh_bez_surf);
-    VertexData<Vector3> dvs(*mesh_bez_surf);
-    VertexData<Vector3> duus(*mesh_bez_surf);
-    VertexData<Vector3> duvs(*mesh_bez_surf);
-    VertexData<Vector3> dvvs(*mesh_bez_surf);
+    //VertexData<Vector3> dus(*mesh_bez_surf);
+    //VertexData<Vector3> dvs(*mesh_bez_surf);
+    //VertexData<Vector3> duus(*mesh_bez_surf);
+    //VertexData<Vector3> duvs(*mesh_bez_surf);
+    //VertexData<Vector3> dvvs(*mesh_bez_surf);
 
-    VertexData<double> mean(*mesh_bez_surf);
-    VertexData<double> gauss(*mesh_bez_surf);
-    VertexData<double> DJ(*mesh_bez_surf);
-    VertexData<Vector2> dmin(*mesh_bez_surf);
-    VertexData<Vector2> dmax(*mesh_bez_surf);
-    VertexData<Vector2> Q(*mesh_bez_surf);
+    //VertexData<double> mean(*mesh_bez_surf);
+    //VertexData<double> gauss(*mesh_bez_surf);
+    //VertexData<double> DJ(*mesh_bez_surf);
+    //VertexData<Vector2> dmin(*mesh_bez_surf);
+    //VertexData<Vector2> dmax(*mesh_bez_surf);
+    //VertexData<Vector2> Q(*mesh_bez_surf);
+
+    //VertexData<Vector3> Ns(*mesh_bez_surf);
+
+    us = VertexData<double>(*mesh_bez_surf);
+    vs = VertexData<double>(*mesh_bez_surf);
+
+    dus  = VertexData<Vector3>(*mesh_bez_surf);
+    dvs  = VertexData<Vector3>(*mesh_bez_surf);
+    duus = VertexData<Vector3>(*mesh_bez_surf);
+    duvs = VertexData<Vector3>(*mesh_bez_surf);
+    dvvs = VertexData<Vector3>(*mesh_bez_surf);
+
+    mean  = VertexData<double>(*mesh_bez_surf);
+    gauss = VertexData<double>(*mesh_bez_surf);
+    DJ    = VertexData<double>(*mesh_bez_surf);
+    dmin  = VertexData<Vector2>(*mesh_bez_surf);
+    dmax  = VertexData<Vector2>(*mesh_bez_surf);
+    Q     = VertexData<Vector2>(*mesh_bez_surf);
 
     VertexData<Vector3> Ns(*mesh_bez_surf);
 
@@ -275,43 +365,11 @@ void doWork() {
         }
     }
 
-    VertexData<Vector3> duus_smoothed(*mesh_bez_surf);
-    //VectorHeatMethodSolver vhs(*geometry_bez_surf);
-    //geometry_bez_surf->requireCotanLaplacian();
-    //geometry_bez_surf->requireVertexLumpedMassMatrix();
-    //const auto& LL = geometry_bez_surf->cotanLaplacian;
-    //const auto& MM = geometry_bez_surf->vertexLumpedMassMatrix;
-    //double dt = 1.0;
-    //SparseMatrix<double> heat = MM + dt*LL;
-    //PositiveDefiniteSolver solv(heat);
-    //for (size_t cc = 0; cc < 3; ++cc) {
-    //    VertexData<double> rhs(*mesh_bez_surf);
-    //    for (auto v : mesh_bez_surf->vertices()) {
-    //        rhs[v] = duus[v][cc];
-    //    }
-    //    //auto MM = geometry_bez_surf->vertexLumpedMassMatrix;
-    //    //
-    //    //VertexData<double> x_pw(*mesh_bez_surf, solv.solve(x.toVector()));
-    //    //VertexData<double> x(*mesh_bez_surf, solv.solve(MM*(rhs.toVector())));
-    //    auto x = rhs;
-    //    size_t num_iter = 10;
-    //    while (num_iter-- > 0) {
-    //        x = vhs.scalarDiffuse(VertexData<double>(*mesh_bez_surf,MM*x.toVector()));
-    //    }
-
-    //    //VertexData<double> x = vhs.scalarDiffuse());
-    //    for (auto v : mesh_bez_surf->vertices()) {
-    //        duus_smoothed[v][cc] = x[v];
-    //    }
-    //}
-
-
     psMesh_bez_surf->addVertexScalarQuantity("u", us, polyscope::DataType::MAGNITUDE);
     psMesh_bez_surf->addVertexScalarQuantity("v", vs, polyscope::DataType::MAGNITUDE);
     psMesh_bez_surf->addVertexVectorQuantity("Du", dus);
     psMesh_bez_surf->addVertexVectorQuantity("Dv", dvs);
     psMesh_bez_surf->addVertexVectorQuantity("Duu", duus);
-    psMesh_bez_surf->addVertexVectorQuantity("Duu (smoothed)", duus_smoothed);
     psMesh_bez_surf->addVertexVectorQuantity("Duv", duvs);
     psMesh_bez_surf->addVertexVectorQuantity("Dvv", dvvs);
     psMesh_bez_surf->addVertexVectorQuantity("Vertex normals (mesh)", geometry_bez_surf->vertexNormals);
@@ -356,6 +414,83 @@ void refreshNormals() {
     //psMesh_bez_surf->refresh();
 }
 
+void smoothDerivatives()
+{
+    //auto duus = VertexData<Vector3>(mesh_bez_surf, psMesh_bez_surf->getQuantity("Duu"));
+    duus_smoothed = VertexData<Vector3>(*mesh_bez_surf);
+    duvs_smoothed = VertexData<Vector3>(*mesh_bez_surf);
+    dvvs_smoothed = VertexData<Vector3>(*mesh_bez_surf);
+    VectorHeatMethodSolver vhs(*geometry_bez_surf);
+    geometry_bez_surf->requireCotanLaplacian();
+    geometry_bez_surf->requireVertexLumpedMassMatrix();
+    const auto& LL = geometry_bez_surf->cotanLaplacian;
+    const auto& MM = geometry_bez_surf->vertexLumpedMassMatrix;
+    double dt = 1.0;
+    SparseMatrix<double> heat = MM + dt * LL;
+    PositiveDefiniteSolver solv(heat);
+    for (size_t cc = 0; cc < 3; ++cc) {
+        VertexData<double> rhs_uu(*mesh_bez_surf);
+        VertexData<double> rhs_uv(*mesh_bez_surf);
+        VertexData<double> rhs_vv(*mesh_bez_surf);
+        for (auto v : mesh_bez_surf->vertices()) {
+            rhs_uu[v] = duus[v][cc];
+            rhs_uv[v] = duvs[v][cc];
+            rhs_vv[v] = dvvs[v][cc];
+        }
+        //auto MM = geometry_bez_surf->vertexLumpedMassMatrix;
+        //
+        //VertexData<double> x_pw(*mesh_bez_surf, solv.solve(x.toVector()));
+        //VertexData<double> x(*mesh_bez_surf, solv.solve(MM*(rhs.toVector())));
+        auto x_uu = rhs_uu;
+        auto x_uv = rhs_uv;
+        auto x_vv = rhs_vv;
+        size_t num_iter = 1;
+        while (num_iter-- > 0) {
+            x_uu = vhs.scalarDiffuse(VertexData<double>(*mesh_bez_surf, MM * x_uu.toVector()));
+            x_uv = vhs.scalarDiffuse(VertexData<double>(*mesh_bez_surf, MM * x_uv.toVector()));
+            x_vv = vhs.scalarDiffuse(VertexData<double>(*mesh_bez_surf, MM * x_vv.toVector()));
+        }
+
+        //VertexData<double> x = vhs.scalarDiffuse());
+        for (auto v : mesh_bez_surf->vertices()) {
+            duus_smoothed[v][cc] = x_uu[v];
+            duvs_smoothed[v][cc] = x_uv[v];
+            dvvs_smoothed[v][cc] = x_vv[v];
+        }
+    }
+    psMesh_bez_surf->addVertexVectorQuantity("Duu (smoothed)", duus_smoothed);
+    psMesh_bez_surf->addVertexVectorQuantity("Duv (smoothed)", duvs_smoothed);
+    psMesh_bez_surf->addVertexVectorQuantity("Dvv (smoothed)", dvvs_smoothed);
+}
+
+void fitSmoothedDerivatives()
+{
+    std::vector<Eigen::Vector3d> dse(duus_smoothed.size() * 3);
+    std::vector<Eigen::Vector2d> uvs(duus_smoothed.size() * 3);
+    for (size_t i = 0; i < duus_smoothed.size(); ++i) {
+        dse[3 * i]     = { duus_smoothed[i][0], duus_smoothed[i][1], duus_smoothed[i][2] };
+        dse[3 * i + 1] = { duvs_smoothed[i][0], duvs_smoothed[i][1], duvs_smoothed[i][2] };
+        dse[3 * i + 2] = { dvvs_smoothed[i][0], dvvs_smoothed[i][1], dvvs_smoothed[i][2] };
+
+        uvs[3 * i]     = { us[i], vs[i] };
+        uvs[3 * i + 1] = { us[i], vs[i] };
+        uvs[3 * i + 2] = { us[i], vs[i] };
+    }
+    std::vector<Eigen::Vector3d> new_cps;
+    fitBeziertoDerivatives(dse, uvs, surf.basisU().degree(), surf.basisV().degree(), BSpline::toEigen(surf.controlPoints()), new_cps);
+
+    surf.controlPoints() = BSpline::fromEigen(new_cps);
+    //size_t resolution = 100;
+    //BSpline::writeToMesh(surf, resolution);
+
+    //std::tie(mesh_bez_surf, geometry_bez_surf) = readManifoldSurfaceMesh("bezier.obj");
+    //psMesh_bez_cnet->updateVertexPositions(new_cps);
+    psCurvNet_bez_cnet->updateNodePositions(new_cps);
+    polyscope::refresh();
+}
+
+
+
 // A user-defined callback, for creating control panels (etc)
 // Use ImGUI commands to build whatever you want here, see
 // https://github.com/ocornut/imgui/blob/master/imgui.h
@@ -363,6 +498,14 @@ void myCallback() {
 
   if (ImGui::Button("Load Bezier")) {
       doWork();
+  }
+
+  if (ImGui::Button("Smooth derivatives")) {
+      smoothDerivatives();
+  }
+
+  if (ImGui::Button("Fit smoothed derivatives")) {
+      fitSmoothedDerivatives();
   }
 
   if (ImGui::Button("Refresh normals")) {
