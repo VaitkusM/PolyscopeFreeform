@@ -69,9 +69,9 @@ namespace BSpline{
 
         std::vector<double> coeff_u, coeff_v;
         for (size_t i = 0; i < resolution; ++i) {
-            double u = (double)i / (double)(resolution - 1);
+            double v = (double)i / (double)(resolution - 1);
             for (size_t j = 0; j < resolution; ++j) {
-                double v = (double)j / (double)(resolution - 1);
+                double u = (double)j / (double)(resolution - 1);
                 pv.push_back(surf.eval(u, v));
             }
         }
@@ -84,6 +84,7 @@ namespace BSpline{
                     i * resolution + j,
                     i * resolution + j + 1,
                     (i + 1) * resolution + j
+
                 );
                 trimesh.addTriangle(
                     (i + 1) * resolution + j,
