@@ -92,7 +92,7 @@ Geometry::BSSurface surf;
 
 // Some algorithm parameters
 float param1 = 42.0;
-int num_smoothing_iters = 0;
+int num_smoothing_iters = 1;
 float w_ders = 1.0;
 float w_oldcps = 1.0;
 
@@ -891,8 +891,8 @@ void smoothQs()
         q_vec_1_3D = q_vec_1_3D.normalize();
         q_vec_2_3D = q_vec_2_3D.normalize();
         double H = mean[v];
-        auto S_eval1 = H + q_mag[v];
-        auto S_eval2 = H - q_mag[v];
+        auto S_eval1 = H - q_mag[v];
+        auto S_eval2 = H + q_mag[v];
         const auto& du = dus[v];
         const auto& dv = dvs[v];
         auto q_vec_1_uv = inSystem(q_vec_1_3D, du, dv);
